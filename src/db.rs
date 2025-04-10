@@ -14,14 +14,14 @@ pub struct Database {
 impl Database {
     pub async fn new(db_url: &str, enabled: bool) -> Result<Self, Box<dyn Error + Send + Sync>> {
         if !enabled {
-            info!("Database persistence disabled in configuration");
+            info!("[DATABASE] Persistence disabled in configuration");
             return Ok(Self {
                 pool: Pool::connect(db_url).await?,
                 enabled: false,
             });
         }
 
-        info!("Connecting to database...");
+        info!("[DATABASE] Connecting to database at {}", db_url);
         let pool = PgPoolOptions::new()
             .max_connections(5)
             .connect(db_url)
@@ -30,7 +30,7 @@ impl Database {
         // Initialize the database schema
         Self::init_schema(&pool).await?;
 
-        info!("Database connection established");
+        info!("[DATABASE] Connection established successfully");
 
         Ok(Self {
             pool,
@@ -109,7 +109,7 @@ impl Database {
         .execute(pool)
         .await?;
 
-        info!("Database schema initialized");
+        info!("[DATABASE] Schema initialized with TimescaleDB hypertable");
         Ok(())
     }
 
@@ -152,7 +152,7 @@ impl Database {
             .execute(&self.pool)
             .await?;
 
-        info!("Retention policy set to {} days", days);
+        info!("[DATABASE] Retention policy set to {} days", days);
         Ok(())
     }
 

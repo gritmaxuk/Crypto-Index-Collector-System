@@ -44,11 +44,11 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         db.setup_retention_policy(config_data.database.retention_days).await?;
     }
 
-    info!("Starting Crypto Index Collector...");
+    info!("[STARTUP] Starting Crypto Index Collector...");
 
     // Load configuration
     let config = config_data.clone();
-    info!("Configuration loaded successfully");
+    info!("[CONFIG] Configuration loaded successfully with {} indices defined", config.indices.len());
 
     // Set up channels for price updates
     let (tx, rx) = mpsc::channel::<FeedData>(100);
@@ -134,7 +134,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
 
     // Setup graceful shutdown
     tokio::signal::ctrl_c().await?;
-    info!("Shutting down...");
+    info!("[SHUTDOWN] Shutting down Crypto Index Collector...");
 
     // Wait for tasks to complete
     for handle in feed_handles {
@@ -142,7 +142,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     }
     calc_handle.abort();
 
-    info!("Shutdown complete");
+    info!("[SHUTDOWN] Shutdown complete");
     Ok(())
 }
 
@@ -161,32 +161,44 @@ async fn fetch_price_loop<E: Exchange>(
         match exchange.fetch_price(&feed.symbol).await {
             Ok(price) => {
                 consecutive_failures = 0;
+                let timestamp = chrono::Utc::now();
                 let feed_data = FeedData {
                     feed_id: feed.id.clone(),
-                    timestamp: chrono::Utc::now(),
+                    timestamp,
                     price,
                 };
+
+                info!("[RAW DATA] Exchange: {}, Symbol: {}, Price: {}, Time: {}",
+                      feed.exchange, feed.symbol, price, timestamp);
 
                 // Save to database if enabled
                 if let Some(db) = &database {
                     if let Err(e) = db.save_price_data(&feed_data).await {
                         error!("Failed to save price data to database: {}", e);
+                    } else {
+                        info!("[DATABASE] Saved price data for feed: {}", feed_data.feed_id);
                     }
                 }
 
+                // Store feed_id before sending feed_data since send() moves the value
+                let feed_id = feed_data.feed_id.clone();
+
                 if let Err(e) = tx.send(feed_data).await {
                     error!("Failed to send price update: {}", e);
+                } else {
+                    info!("[INTERNAL] Sent price update for feed: {} to index calculator", feed_id);
                 }
             }
             Err(e) => {
                 consecutive_failures += 1;
                 if consecutive_failures >= 5 {
                     warn!(
-                        "Failed to fetch price from {} for {} {} times consecutively: {}",
+                        "[EXCHANGE ERROR] Failed to fetch price from {} for {} {} times consecutively: {}",
                         feed.exchange, feed.symbol, consecutive_failures, e
                     );
                 } else {
-                    error!("Failed to fetch price: {}", e);
+                    error!("[EXCHANGE ERROR] Failed to fetch price from {} for {}: {}",
+                           feed.exchange, feed.symbol, e);
                 }
             }
         }
@@ -195,8 +207,8 @@ async fn fetch_price_loop<E: Exchange>(
 
 fn output_index(index: &IndexResult) {
     info!(
-        "INDEX: {} | TIMESTAMP: {} | VALUE: {}",
-        index.name, index.timestamp, index.value
+        "[CALCULATED INDEX] Name: {}, Value: {}, Time: {}",
+        index.name, index.value, index.timestamp
     );
 }
 
@@ -204,7 +216,7 @@ fn output_index(index: &IndexResult) {
 async fn start_websocket_server(address: String, index_calc: Arc<RwLock<IndexCalculator>>) -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     let try_socket = TcpListener::bind(&address).await;
     let listener = try_socket.map_err(|e| format!("Failed to bind: {}", e))?;
-    info!("WebSocket server listening on: {}", address);
+    info!("[WEBSOCKET SERVER] Listening on: {}", address);
 
     while let Ok((stream, addr)) = listener.accept().await {
         // SocketAddr implements Copy, so no need to clone
@@ -221,7 +233,7 @@ async fn start_websocket_server(address: String, index_calc: Arc<RwLock<IndexCal
 }
 
 async fn handle_connection(stream: TcpStream, addr: SocketAddr, index_calc: Arc<RwLock<IndexCalculator>>) -> Result<(), Box<dyn Error + Send + Sync>> {
-    info!("Incoming TCP connection from: {}", addr);
+    info!("[WEBSOCKET CONNECTION] Incoming connection from: {}", addr);
 
     let ws_stream = accept_async(stream)
         .await
@@ -230,7 +242,7 @@ async fn handle_connection(stream: TcpStream, addr: SocketAddr, index_calc: Arc<
             Box::new(e) as Box<dyn Error + Send + Sync>
         })?;
 
-    info!("WebSocket connection established with: {}", addr);
+    info!("[WEBSOCKET ESTABLISHED] Connection established with: {}", addr);
 
     // Use a simpler approach without spawning a task
     handle_websocket(ws_stream, addr, index_calc).await;
@@ -241,6 +253,7 @@ async fn handle_connection(stream: TcpStream, addr: SocketAddr, index_calc: Arc<
 async fn handle_websocket(mut ws_stream: WebSocketStream<TcpStream>, addr: SocketAddr, index_calc: Arc<RwLock<IndexCalculator>>) {
     // Send a welcome message
     let welcome = format!("Connected to Crypto Index Collector. Client: {}", addr);
+    info!("[WEBSOCKET WELCOME] Sending welcome message to: {}", addr);
     let _ = ws_stream.send(tokio_tungstenite::tungstenite::Message::Text(welcome.into())).await;
 
     // Set up interval for periodic updates
@@ -253,14 +266,14 @@ async fn handle_websocket(mut ws_stream: WebSocketStream<TcpStream>, addr: Socke
             msg = ws_stream.next() => {
                 match msg {
                     Some(Ok(msg)) => {
-                        info!("Received a message from {}: {:?}", addr, msg);
+                        info!("[WEBSOCKET RECEIVED] From: {}, Message: {:?}", addr, msg);
                     }
                     Some(Err(e)) => {
-                        error!("Error receiving message from {}: {}", addr, e);
+                        error!("[WEBSOCKET ERROR] From: {}, Error: {}", addr, e);
                         break;
                     }
                     None => {
-                        info!("WebSocket connection closed by {}", addr);
+                        info!("[WEBSOCKET CLOSED] Connection closed by client: {}", addr);
                         break;
                     }
                 }
@@ -282,8 +295,11 @@ async fn handle_websocket(mut ws_stream: WebSocketStream<TcpStream>, addr: Socke
                     let message = format!("INDEX: {} | TIMESTAMP: {} | VALUE: {}",
                         index.name, index.timestamp, index.value);
 
+                    info!("[WEBSOCKET SEND] Client: {}, Index: {}, Value: {}",
+                         addr, index.name, index.value);
+
                     if let Err(e) = ws_stream.send(tokio_tungstenite::tungstenite::Message::Text(message.into())).await {
-                        error!("Failed to send message to {}: {}", addr, e);
+                        error!("[WEBSOCKET ERROR] Failed to send to: {}, Error: {}", addr, e);
                         return;
                     }
                 }
@@ -291,7 +307,7 @@ async fn handle_websocket(mut ws_stream: WebSocketStream<TcpStream>, addr: Socke
         }
     }
 
-    info!("WebSocket connection closed with {}", addr);
+    info!("[WEBSOCKET CLOSED] Connection terminated with: {}", addr);
 }
 
 // WebSocket handling is done through tokio::select in handle_websocket
