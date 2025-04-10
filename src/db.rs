@@ -1,8 +1,7 @@
 use std::error::Error;
 use sqlx::{Pool, Postgres, postgres::PgPoolOptions, Row};
-use sqlx::postgres::PgRow;
 use chrono::{DateTime, Utc};
-use tracing::{info, error};
+use tracing::info;
 
 use crate::models::FeedData;
 
@@ -13,7 +12,7 @@ pub struct Database {
 }
 
 impl Database {
-    pub async fn new(db_url: &str, enabled: bool) -> Result<Self, Box<dyn Error>> {
+    pub async fn new(db_url: &str, enabled: bool) -> Result<Self, Box<dyn Error + Send + Sync>> {
         if !enabled {
             info!("Database persistence disabled in configuration");
             return Ok(Self {
@@ -27,24 +26,24 @@ impl Database {
             .max_connections(5)
             .connect(db_url)
             .await?;
-        
+
         // Initialize the database schema
         Self::init_schema(&pool).await?;
-        
+
         info!("Database connection established");
-        
+
         Ok(Self {
             pool,
             enabled,
         })
     }
-    
-    async fn init_schema(pool: &Pool<Postgres>) -> Result<(), Box<dyn Error>> {
+
+    async fn init_schema(pool: &Pool<Postgres>) -> Result<(), Box<dyn Error + Send + Sync>> {
         // First ensure the extension is available
         sqlx::query("CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;")
             .execute(pool)
             .await?;
-    
+
         // Drop the existing table if it exists but is not a hypertable
         // This is needed because we can't convert an existing table with constraints to a hypertable
         sqlx::query(
@@ -65,7 +64,7 @@ impl Database {
         )
         .execute(pool)
         .await?;
-    
+
         // Create the table if it doesn't exist
         sqlx::query(
             r#"
@@ -80,18 +79,18 @@ impl Database {
         )
         .execute(pool)
         .await?;
-    
+
         // Try to convert to hypertable
         sqlx::query(
             r#"
-            SELECT create_hypertable('raw_price_data', 'timestamp', 
-                                   chunk_time_interval => INTERVAL '1 day', 
+            SELECT create_hypertable('raw_price_data', 'timestamp',
+                                   chunk_time_interval => INTERVAL '1 day',
                                    if_not_exists => TRUE);
             "#
         )
         .execute(pool)
         .await?;
-    
+
         // Create indexes
         sqlx::query(
             r#"
@@ -100,31 +99,31 @@ impl Database {
         )
         .execute(pool)
         .await?;
-    
+
         sqlx::query(
             r#"
-            CREATE UNIQUE INDEX IF NOT EXISTS idx_raw_price_data_feed_timestamp 
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_raw_price_data_feed_timestamp
             ON raw_price_data (feed_id, timestamp);
             "#
         )
         .execute(pool)
         .await?;
-    
+
         info!("Database schema initialized");
         Ok(())
     }
 
-    pub async fn save_price_data(&self, data: &FeedData) -> Result<(), Box<dyn Error>> {
+    pub async fn save_price_data(&self, data: &FeedData) -> Result<(), Box<dyn Error + Send + Sync>> {
         if !self.enabled {
             return Ok(());
         }
-    
+
         // Use ON CONFLICT to handle duplicates
         sqlx::query(
             r#"
-            INSERT INTO raw_price_data (feed_id, timestamp, price) 
+            INSERT INTO raw_price_data (feed_id, timestamp, price)
             VALUES ($1, $2, $3)
-            ON CONFLICT (feed_id, timestamp) 
+            ON CONFLICT (feed_id, timestamp)
             DO UPDATE SET price = EXCLUDED.price
             "#
         )
@@ -133,32 +132,32 @@ impl Database {
         .bind(data.price)
         .execute(&self.pool)
         .await?;
-    
+
         Ok(())
     }
 
-    pub async fn setup_retention_policy(&self, days: u32) -> Result<(), Box<dyn Error>> {
+    pub async fn setup_retention_policy(&self, days: u32) -> Result<(), Box<dyn Error + Send + Sync>> {
         if !self.enabled {
             return Ok(());
         }
-    
+
         // Construct the SQL directly with the interval value
         let sql = format!(
             "SELECT add_retention_policy('raw_price_data', INTERVAL '{} days', if_not_exists => TRUE);",
             days
         );
-    
+
         // Execute without parameter binding
         sqlx::query(&sql)
             .execute(&self.pool)
             .await?;
-    
+
         info!("Retention policy set to {} days", days);
         Ok(())
     }
 
     pub async fn get_recent_prices(&self, feed_id: &str, limit: i64)
-        -> Result<Vec<(DateTime<Utc>, f64)>, Box<dyn Error>> {
+        -> Result<Vec<(DateTime<Utc>, f64)>, Box<dyn Error + Send + Sync>> {
         if !self.enabled {
             return Ok(Vec::new());
         }

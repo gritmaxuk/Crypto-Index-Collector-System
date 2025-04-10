@@ -11,13 +11,15 @@ pub struct Config {
     pub indices: Vec<IndexDefinition>,
     #[serde(default)]
     pub database: DatabaseConfig,
+    #[serde(default)]
+    pub websocket: WebsocketConfig,
 }
 
 impl Config {
-    pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, Box<dyn Error>> {
+    pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, Box<dyn Error + Send + Sync>> {
         let content = fs::read_to_string(path)?;
         let config: Config = toml::from_str(&content)?;
-        
+
         // Validate configuration
         for index in &config.indices {
             let total_weight: u32 = index.feeds.iter().map(|f| f.weight).sum();
@@ -25,7 +27,7 @@ impl Config {
                 return Err(format!("Weights for index {} must sum to 100, got {}", index.name, total_weight).into());
             }
         }
-        
+
         Ok(config)
     }
 }
@@ -56,4 +58,14 @@ fn default_db_url() -> String {
 
 fn default_retention_days() -> u32 {
     30
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct WebsocketConfig {
+    #[serde(default = "default_websocket_address")]
+    pub address: String,
+}
+
+fn default_websocket_address() -> String {
+    "127.0.0.1:8080".to_string()
 }
