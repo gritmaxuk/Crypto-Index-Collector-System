@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  timescaledb:
+    image: timescale/timescaledb:latest-pg14
+    environment:
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_USER=postgres
+      - POSTGRES_DB=crypto_indices
+    ports:
+      - "5432:5432"
+    volumes:
+      - timescaledb_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  crypto-index-collector:
+    build: .
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=postgres://postgres:password@timescaledb:5432/crypto_indices
+    volumes:
+      - ./config.toml:/app/config.toml
+
+volumes:
+  timescaledb_data:

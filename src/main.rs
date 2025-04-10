@@ -10,8 +10,9 @@ mod exchange;
 mod index;
 mod models;
 mod smoothing;
+mod db;
+use db::Database;
 
-use config::Config;
 use exchange::Exchange;
 use exchange::coinbase::CoinbaseExchange;
 use exchange::binance::BinanceExchange;
@@ -26,10 +27,22 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .finish();
     tracing::subscriber::set_global_default(subscriber)?;
     
+    // Initialize database if enabled
+    let config_data = config::Config::from_file("config.toml")?;
+    let database = if config_data.database.enabled {
+        Some(Database::new(&config_data.database.url, true).await?)
+    } else {
+        None
+    };
+    
+    if let Some(db) = &database {
+        db.setup_retention_policy(config_data.database.retention_days).await?;
+    }
+
     info!("Starting Crypto Index Collector...");
 
     // Load configuration
-    let config = Config::from_file("config.toml")?;
+    let config = config_data.clone();
     info!("Configuration loaded successfully");
     
     // Set up channels for price updates
@@ -50,9 +63,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
             if feed.exchange == "coinbase" {
                 let feed_tx = tx.clone();
                 let feed_clone = feed.clone();
+                let db_clone = database.clone();
                 let handle = tokio::spawn(async move {
                     let exchange = CoinbaseExchange::new();
-                    fetch_price_loop(exchange, feed_clone, feed_tx).await;
+                    fetch_price_loop(exchange, feed_clone, feed_tx, db_clone).await;
                 });
                 feed_handles.push(handle);
             }
@@ -65,9 +79,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
             if feed.exchange == "binance" {
                 let feed_tx = tx.clone();
                 let feed_clone = feed.clone();
+                let db_clone = database.clone();
                 let handle = tokio::spawn(async move {
                     let exchange = BinanceExchange::new();
-                    fetch_price_loop(exchange, feed_clone, feed_tx).await;
+                    fetch_price_loop(exchange, feed_clone, feed_tx, db_clone).await;
                 });
                 feed_handles.push(handle);
             }
@@ -119,6 +134,7 @@ async fn fetch_price_loop<E: Exchange>(
     exchange: E,
     feed: PriceFeed,
     tx: mpsc::Sender<FeedData>,
+    database: Option<Database>,
 ) {
     let mut interval = time::interval(Duration::from_secs(5));
     let mut consecutive_failures = 0;
@@ -134,6 +150,13 @@ async fn fetch_price_loop<E: Exchange>(
                     timestamp: chrono::Utc::now(),
                     price,
                 };
+                
+                // Save to database if enabled
+                if let Some(db) = &database {
+                    if let Err(e) = db.save_price_data(&feed_data).await {
+                        error!("Failed to save price data to database: {}", e);
+                    }
+                }
                 
                 if let Err(e) = tx.send(feed_data).await {
                     error!("Failed to send price update: {}", e);

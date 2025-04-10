@@ -29,3 +29,8 @@ id = "binance_eth_usdt"
 exchange = "binance"
 symbol = "ETHUSDT"
 weight = 50  # 50% weight
+
+[database]
+enabled = true
+url = "postgres://postgres:password@localhost:5432/crypto_indices"
+retention_days = 30  # How long to keep raw data
