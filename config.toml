@@ -1,0 +1,31 @@
+[[indices]]
+name = "BTC-USD-INDEX"
+smoothing = "ema"  # Options: "none", "sma", "ema"
+
+[[indices.feeds]]
+id = "coinbase_btc_usd"
+exchange = "coinbase"
+symbol = "BTC-USD"
+weight = 60  # 60% weight
+
+[[indices.feeds]]
+id = "binance_btc_usdt"
+exchange = "binance"
+symbol = "BTCUSDT"
+weight = 40  # 40% weight
+
+[[indices]]
+name = "ETH-USD-INDEX"
+smoothing = "sma"  # Options: "none", "sma", "ema"
+
+[[indices.feeds]]
+id = "coinbase_eth_usd"
+exchange = "coinbase"
+symbol = "ETH-USD"
+weight = 50  # 50% weight
+
+[[indices.feeds]]
+id = "binance_eth_usdt"
+exchange = "binance"
+symbol = "ETHUSDT"
+weight = 50  # 50% weight
