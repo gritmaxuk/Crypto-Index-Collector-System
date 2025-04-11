@@ -2,6 +2,9 @@ mod none;
 mod sma;
 mod ema;
 
+#[cfg(test)]
+mod tests;
+
 use std::collections::VecDeque;
 use crate::models::SmoothingType;
 
