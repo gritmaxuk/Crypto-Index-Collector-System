@@ -16,7 +16,9 @@ The Crypto Index Collector fetches cryptocurrency price data from multiple excha
   - Exponential Moving Average (EMA)
 - Robust error handling with retry logic
 - Structured logging for monitoring and notifications
-- Docker containerization for easy deployment
+- Automatic restart on failure with notification system
+- WebSocket server for real-time index updates
+- Command-line client for consuming index data
 
 ## Getting Started
 
@@ -32,3 +34,67 @@ The Crypto Index Collector fetches cryptocurrency price data from multiple excha
 
 ```bash
 cargo build --release
+```
+
+## Components
+
+The project consists of three main components:
+
+### 1. Index Collector (Main Application)
+
+The core application that fetches price data, calculates indices, and serves them via WebSocket.
+
+```bash
+# Run the main application
+cargo run --bin crypto-index-collector
+```
+
+See the configuration options in `config.toml`.
+
+### 2. WebSocket Client
+
+A command-line client that connects to the WebSocket server and displays index updates.
+
+```bash
+# Run the client
+cargo run --bin crypto-index-client
+```
+
+For more details, see [client-README.md](client-README.md).
+
+### 3. Supervisor
+
+A process that monitors the main application, automatically restarts it on failure, and sends notifications.
+
+```bash
+# Run the supervisor
+cargo run --bin crypto-index-supervisor
+```
+
+For more details, see [supervisor-README.md](supervisor-README.md).
+
+## Reliability Features
+
+### Automatic Restart
+
+The supervisor monitors the main application and automatically restarts it if it crashes or exits with an error. Key features:
+
+- Exponential backoff for restart attempts
+- Configurable restart limits and monitoring periods
+- Notification system for restart events
+
+### Error Handling
+
+- Retry logic for exchange API calls
+- Notification after 5 consecutive failures to fetch price data
+- Graceful handling of WebSocket connection failures
+
+### Logging
+
+Structured logging with clear prefixes to distinguish between:
+
+- Raw data from exchanges
+- Calculated index values
+- Data sent to WebSocket clients
+- Database operations
+- System events (startup, shutdown, etc.)
