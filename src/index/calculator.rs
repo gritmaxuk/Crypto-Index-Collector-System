@@ -1,14 +1,16 @@
 use std::collections::{HashMap, VecDeque};
-use std::error::Error;
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use tokio::sync::mpsc;
 use tracing::{error, info, debug};
 
 use crate::models::{FeedData, IndexDefinition};
-use crate::smoothing::SmoothingAlgorithm;
+use crate::smoothing;
+use crate::error::AppResult;
+use super::models::IndexResult;
 
 const MAX_HISTORY_SIZE: usize = 20;
 
+/// Calculator for cryptocurrency indices
 #[derive(Debug)]
 pub struct IndexCalculator {
     indices: Vec<IndexDefinition>,
@@ -18,14 +20,8 @@ pub struct IndexCalculator {
     receiver: mpsc::Receiver<FeedData>,
 }
 
-#[derive(Debug, Clone)]
-pub struct IndexResult {
-    pub name: String,
-    pub timestamp: DateTime<Utc>,
-    pub value: f64,
-}
-
 impl IndexCalculator {
+    /// Create a new index calculator
     pub fn new(
         indices: Vec<IndexDefinition>,
         receiver: mpsc::Receiver<FeedData>,
@@ -53,7 +49,8 @@ impl IndexCalculator {
         }
     }
 
-    pub fn calculate_indices(&mut self) -> Result<Vec<IndexResult>, Box<dyn Error>> {
+    /// Calculate all indices
+    pub fn calculate_indices(&mut self) -> AppResult<Vec<IndexResult>> {
         // Process any new feed updates
         self.process_feed_updates()?;
 
@@ -85,18 +82,18 @@ impl IndexCalculator {
             }
 
             let raw_index_value = weighted_sum / (total_weights as f64 / 100.0);
-
+            
             // Log raw index value before smoothing
             debug!("[CALCULATION] Index: {}, Raw Value: {}", index_def.name, raw_index_value);
-
+            
             // Apply smoothing algorithm
-            let smoothing_algo = SmoothingAlgorithm::from(&index_def.smoothing);
+            let smoothing_algo = smoothing::create_algorithm(&index_def.smoothing);
             let index_history = self.index_history.entry(index_def.name.clone()).or_default();
             let smoothed_value = smoothing_algo.apply(index_history, raw_index_value);
-
+            
             // Log the smoothing effect
-            info!("[SMOOTHING] Index: {}, Algorithm: {:?}, Raw: {}, Smoothed: {}, Diff: {:.4}%",
-                 index_def.name, index_def.smoothing, raw_index_value, smoothed_value,
+            info!("[SMOOTHING] Index: {}, Algorithm: {:?}, Raw: {}, Smoothed: {}, Diff: {:.4}%", 
+                 index_def.name, index_def.smoothing, raw_index_value, smoothed_value, 
                  (smoothed_value - raw_index_value) / raw_index_value * 100.0);
 
             // Update history
@@ -119,18 +116,19 @@ impl IndexCalculator {
         Ok(results)
     }
 
-    fn process_feed_updates(&mut self) -> Result<(), Box<dyn Error>> {
+    /// Process feed updates from the receiver
+    fn process_feed_updates(&mut self) -> AppResult<()> {
         // Process all available updates without blocking
         let mut updates_count = 0;
-
+        
         while let Ok(feed_data) = self.receiver.try_recv() {
             updates_count += 1;
-            debug!("[PROCESSING] Feed: {}, Price: {}, Time: {}",
+            debug!("[PROCESSING] Feed: {}, Price: {}, Time: {}", 
                   feed_data.feed_id, feed_data.price, feed_data.timestamp);
-
+            
             // Update current value
             self.feed_values.insert(feed_data.feed_id.clone(), feed_data.price);
-
+            
             // Update history
             let history = self.feed_history.entry(feed_data.feed_id.clone()).or_default();
             history.push_front(feed_data.price);
@@ -138,7 +136,7 @@ impl IndexCalculator {
                 history.pop_back();
             }
         }
-
+        
         if updates_count > 0 {
             info!("[BATCH PROCESSING] Processed {} feed updates", updates_count);
         }

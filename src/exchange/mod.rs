@@ -1,14 +1,19 @@
-use async_trait::async_trait;
-use std::error::Error;
-
 // Re-export PriceFeed from models
 pub use crate::models::PriceFeed;
 
-// Re-export submodules
+// Modules
 pub mod coinbase;
 pub mod binance;
+pub mod traits;
 
-#[async_trait]
-pub trait Exchange {
-    async fn fetch_price(&self, symbol: &str) -> Result<f64, Box<dyn Error + Send + Sync>>;
+// Re-export the Exchange trait
+pub use traits::Exchange;
+
+// Factory function to create exchange instances
+pub fn create_exchange(name: &str) -> Option<Box<dyn Exchange>> {
+    match name.to_lowercase().as_str() {
+        "coinbase" => Some(Box::new(coinbase::CoinbaseExchange::new())),
+        "binance" => Some(Box::new(binance::BinanceExchange::new())),
+        _ => None,
+    }
 }

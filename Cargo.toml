@@ -6,15 +6,15 @@ description = "Real-Time Price Index Collector for Cryptocurrencies"
 
 [[bin]]
 name = "crypto-index-collector"
-path = "src/main.rs"
+path = "src/bin/collector.rs"
 
 [[bin]]
 name = "crypto-index-client"
-path = "src/client.rs"
+path = "src/bin/client.rs"
 
 [[bin]]
 name = "crypto-index-supervisor"
-path = "src/supervisor.rs"
+path = "src/bin/supervisor.rs"
 
 [dependencies]
 tokio = { version = "1.29", features = ["full"] }
