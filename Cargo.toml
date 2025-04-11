@@ -4,6 +4,14 @@ version = "0.1.0"
 edition = "2021"
 description = "Real-Time Price Index Collector for Cryptocurrencies"
 
+[[bin]]
+name = "crypto-index-collector"
+path = "src/main.rs"
+
+[[bin]]
+name = "crypto-index-client"
+path = "src/client.rs"
+
 [dependencies]
 tokio = { version = "1.29", features = ["full"] }
 reqwest = { version = "0.12.15", features = ["json"] }
@@ -16,6 +24,8 @@ tracing-subscriber = "0.3"
 async-trait = "0.1"
 thiserror = "2.0.12"
 sqlx = { version = "0.8.3", features = ["runtime-tokio", "tls-rustls", "postgres", "chrono", "json"] }
-tokio-tungstenite = "0.26.2"
+tokio-tungstenite = { version = "0.26.2", features = ["connect"] }
 lazy_static = "1.4.0"
 futures = "0.3"
+url = "2.5.0"
+clap = { version = "4.5.4", features = ["derive"] }
