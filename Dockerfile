@@ -1,4 +1,4 @@
-FROM rust:1.70 as builder
+FROM rust:1.81 as builder
 
 WORKDIR /app
 
@@ -20,7 +20,7 @@ COPY . .
 RUN cargo build --release
 
 # Runtime image
-FROM debian:bullseye-slim
+FROM debian:bookworm-slim
 
 # Install dependencies
 RUN apt-get update && \
@@ -38,8 +38,7 @@ COPY notify.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/notify.sh
 
 # Create a directory for configuration
-WORKDIR /app
-COPY config.toml .
+
 
 # Set the entrypoint to the supervisor
 ENTRYPOINT ["/usr/local/bin/crypto-index-supervisor", "--notification-script", "/usr/local/bin/notify.sh"]
