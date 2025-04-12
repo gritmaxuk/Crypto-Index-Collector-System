@@ -33,10 +33,10 @@ The collector is configured via a TOML file (`config.toml` by default). The conf
 ```toml
 # Define all feeds in one section
 [feeds]
-coinbase_btc_usd = { exchange = "coinbase", symbol = "BTC-USD", enabled = true }
-binance_btc_usdt = { exchange = "binance", symbol = "BTCUSDT", enabled = true }
-coinbase_eth_usd = { exchange = "coinbase", symbol = "ETH-USD", enabled = true }
-binance_eth_usdt = { exchange = "binance", symbol = "ETHUSDT", enabled = true }
+coinbase_btc_usd = { exchange = "coinbase", base_currency = "BTC", quote_currency = "USD", enabled = true }
+binance_btc_usd = { exchange = "binance", base_currency = "BTC", quote_currency = "USD", enabled = true }
+coinbase_eth_usd = { exchange = "coinbase", base_currency = "ETH", quote_currency = "USD", enabled = true }
+binance_eth_usd = { exchange = "binance", base_currency = "ETH", quote_currency = "USD", enabled = true }
 
 # Define indices and reference feeds
 [[indices]]
@@ -44,7 +44,7 @@ name = "BTC-USD-INDEX"
 smoothing = "ema"  # Options: "none", "sma", "ema"
 feeds = [
     { id = "coinbase_btc_usd", weight = 60 },
-    { id = "binance_btc_usdt", weight = 40 }
+    { id = "binance_btc_usd", weight = 40 }
 ]
 
 [[indices]]
@@ -52,7 +52,7 @@ name = "ETH-USD-INDEX"
 smoothing = "sma"  # Options: "none", "sma", "ema"
 feeds = [
     { id = "coinbase_eth_usd", weight = 50 },
-    { id = "binance_eth_usdt", weight = 50 }
+    { id = "binance_eth_usd", weight = 50 }
 ]
 
 # Database configuration (optional)
@@ -74,13 +74,18 @@ The `[feeds]` section defines all available price feeds:
 
 ```toml
 [feeds]
-feed_id = { exchange = "exchange_name", symbol = "symbol_name", enabled = true|false }
+feed_id = { exchange = "exchange_name", base_currency = "BASE", quote_currency = "QUOTE", enabled = true|false }
 ```
 
 - `feed_id`: A unique identifier for the feed (e.g., `coinbase_btc_usd`)
 - `exchange`: The exchange to fetch data from (`coinbase` or `binance`)
-- `symbol`: The symbol to fetch (in exchange-specific format)
+- `base_currency`: The base currency (e.g., `BTC`, `ETH`)
+- `quote_currency`: The quote currency (e.g., `USD`, `EUR`)
 - `enabled`: Whether the feed is enabled (default: `true`)
+
+The system will automatically generate the appropriate symbol format for each exchange based on the base and quote currencies. For example:
+- Coinbase: `BTC-USD` (with hyphen)
+- Binance: `BTCUSDT` (uses USDT for USD pairs)
 
 #### Indices Section
 

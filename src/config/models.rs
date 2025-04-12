@@ -21,9 +21,30 @@ pub struct Config {
 #[derive(Debug, Clone, Deserialize)]
 pub struct FeedConfig {
     pub exchange: String,
-    pub symbol: String,
+    pub base_currency: String,
+    pub quote_currency: String,
     #[serde(default = "default_enabled")]
     pub enabled: bool,
+    #[serde(skip)]
+    pub symbol: String,
+}
+
+impl FeedConfig {
+    // Build the exchange-specific symbol format based on base and quote currencies
+    pub fn get_symbol(&self) -> String {
+        match self.exchange.as_str() {
+            "coinbase" => format!("{}-{}", self.base_currency, self.quote_currency),
+            "binance" => {
+                // Binance requires USDT for USD pairs
+                if self.quote_currency == "USD" {
+                    format!("{}{}", self.base_currency, "USDT")
+                } else {
+                    format!("{}{}", self.base_currency, self.quote_currency)
+                }
+            },
+            _ => format!("{}-{}", self.base_currency, self.quote_currency) // Default format
+        }
+    }
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -50,19 +71,41 @@ impl Config {
 
         // Validate configuration
         for index in &config.indices {
-            // Check that all referenced feeds exist
+            // Extract the base and quote currencies from index name (e.g., "BTC" and "USD" from "BTC-USD-INDEX")
+            let parts: Vec<&str> = index.name.split('-').collect();
+            if parts.len() < 2 {
+                return Err(format!("Invalid index name format: {}, expected format like 'BTC-USD-INDEX'", index.name).into());
+            }
+
+            let index_base_currency = parts[0];
+            let index_quote_currency = parts[1];
+
+            // Check that all referenced feeds exist and match the index currency
             for feed_ref in &index.feeds {
-                if !config.feeds.contains_key(&feed_ref.id) {
-                    return Err(format!("Feed '{}' referenced in index '{}' does not exist",
+                // Check if the feed exists
+                let feed = config.feeds.get(&feed_ref.id)
+                    .ok_or_else(|| format!("Feed '{}' referenced in index '{}' does not exist",
+                                          feed_ref.id, index.name))?;
+
+                // Check if the feed is enabled
+                if !feed.enabled {
+                    return Err(format!("Feed '{}' referenced in index '{}' is disabled",
                                       feed_ref.id, index.name).into());
                 }
 
-                // Check if the feed is enabled
-                if let Some(feed) = config.feeds.get(&feed_ref.id) {
-                    if !feed.enabled {
-                        return Err(format!("Feed '{}' referenced in index '{}' is disabled",
-                                          feed_ref.id, index.name).into());
-                    }
+                // Check if the feed's base and quote currencies match the index's currencies
+                if feed.base_currency != index_base_currency {
+                    return Err(format!(
+                        "Feed '{}' with base currency '{}' cannot be used in index '{}' with base currency '{}'",
+                        feed_ref.id, feed.base_currency, index.name, index_base_currency
+                    ).into());
+                }
+
+                if feed.quote_currency != index_quote_currency {
+                    return Err(format!(
+                        "Feed '{}' with quote currency '{}' cannot be used in index '{}' with quote currency '{}'",
+                        feed_ref.id, feed.quote_currency, index.name, index_quote_currency
+                    ).into());
                 }
             }
 
@@ -78,24 +121,33 @@ impl Config {
     }
 
     // Convert to the internal model format used by the application
-    pub fn to_internal_model(&self) -> Vec<crate::models::IndexDefinition> {
-        self.indices.iter().map(|index_config| {
-            let feeds = index_config.feeds.iter().map(|feed_ref| {
-                let feed_config = self.feeds.get(&feed_ref.id).unwrap();
-                crate::models::PriceFeed {
+    pub fn to_internal_model(&self) -> Result<Vec<crate::models::IndexDefinition>, String> {
+        let mut result = Vec::with_capacity(self.indices.len());
+
+        for index_config in &self.indices {
+            let mut feeds = Vec::with_capacity(index_config.feeds.len());
+
+            for feed_ref in &index_config.feeds {
+                let feed_config = self.feeds.get(&feed_ref.id)
+                    .ok_or_else(|| format!("Feed '{}' referenced in index '{}' not found",
+                                          feed_ref.id, index_config.name))?;
+
+                feeds.push(crate::models::PriceFeed {
                     id: feed_ref.id.clone(),
                     exchange: feed_config.exchange.clone(),
-                    symbol: feed_config.symbol.clone(),
+                    symbol: feed_config.get_symbol(),
                     weight: feed_ref.weight,
-                }
-            }).collect();
+                });
+            }
 
-            crate::models::IndexDefinition {
+            result.push(crate::models::IndexDefinition {
                 name: index_config.name.clone(),
                 feeds,
                 smoothing: index_config.smoothing.clone(),
-            }
-        }).collect()
+            });
+        }
+
+        Ok(result)
     }
 }
 
@@ -127,10 +179,18 @@ fn default_retention_days() -> u32 {
     30
 }
 
-#[derive(Debug, Clone, Deserialize, Default)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct WebsocketConfig {
     #[serde(default = "default_websocket_address")]
     pub address: String,
+}
+
+impl Default for WebsocketConfig {
+    fn default() -> Self {
+        Self {
+            address: default_websocket_address(),
+        }
+    }
 }
 
 fn default_websocket_address() -> String {

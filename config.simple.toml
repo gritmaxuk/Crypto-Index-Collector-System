@@ -1,6 +1,6 @@
 # Define all feeds in one section
 [feeds]
-coinbase_btc_usd = { exchange = "coinbase", symbol = "BTC-USD", enabled = true }
+coinbase_btc_usd = { exchange = "coinbase", base_currency = "BTC", quote_currency = "USD", enabled = true }
 
 # Define indices and reference feeds
 [[indices]]

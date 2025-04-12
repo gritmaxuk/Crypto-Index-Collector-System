@@ -179,7 +179,7 @@ This test verifies that the SMA smoothing algorithm works correctly.
 # Create a temporary configuration file with SMA smoothing
 cat > config.test-sma.toml << EOL
 [feeds]
-coinbase_btc_usd = { exchange = "coinbase", symbol = "BTC-USD", enabled = true }
+coinbase_btc_usd = { exchange = "coinbase", base_currency = "BTC", quote_currency = "USD", enabled = true }
 
 [[indices]]
 name = "BTC-USD-INDEX"
@@ -215,7 +215,7 @@ This test verifies that the EMA smoothing algorithm works correctly.
 # Create a temporary configuration file with EMA smoothing
 cat > config.test-ema.toml << EOL
 [feeds]
-coinbase_btc_usd = { exchange = "coinbase", symbol = "BTC-USD", enabled = true }
+coinbase_btc_usd = { exchange = "coinbase", base_currency = "BTC", quote_currency = "USD", enabled = true }
 
 [[indices]]
 name = "BTC-USD-INDEX"

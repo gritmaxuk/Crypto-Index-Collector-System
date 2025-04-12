@@ -20,8 +20,21 @@ pub async fn start_websocket_server(
     let addr: SocketAddr = address.parse()
         .map_err(|e| format!("Invalid WebSocket address: {}", e))?;
 
-    let listener = TcpListener::bind(&addr).await
-        .map_err(|e| format!("Failed to bind WebSocket server: {}", e))?;
+    let listener = match TcpListener::bind(&addr).await {
+        Ok(listener) => listener,
+        Err(e) => {
+            if e.kind() == std::io::ErrorKind::AddrInUse {
+                let port = addr.port();
+                return Err(format!("WebSocket port {} is already in use. This could be due to:\n\
+                1. Another instance of the collector is already running\n\
+                2. Another application is using this port\n\
+                Try running 'lsof -i :{}' to identify the process, then terminate it with 'kill <PID>'.",
+                port, port).into());
+            } else {
+                return Err(format!("Failed to bind WebSocket server: {}", e).into());
+            }
+        }
+    };
 
     info!("[WEBSOCKET SERVER] Listening on: {}", address);
 

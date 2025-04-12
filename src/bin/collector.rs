@@ -41,7 +41,8 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let (tx, rx) = mpsc::channel(100);
 
     // Convert configuration to internal model
-    let indices = config.to_internal_model();
+    let indices = config.to_internal_model()
+        .map_err(|e| format!("Failed to convert configuration to internal model: {}", e))?;
 
     // Create index calculator
     let index_calc = Arc::new(RwLock::new(IndexCalculator::new(
@@ -198,6 +199,8 @@ async fn fetch_price(feed: &crypto_index_collector::models::PriceFeed) -> Result
 
     // Fetch the price
     let price = exchange.fetch_price(&feed.symbol).await?;
+
+    // The price is fetched directly from the exchange using the appropriate symbol format
 
     Ok(price)
 }
