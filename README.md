@@ -210,6 +210,12 @@ The smoothing algorithm tests verify:
   ```
   EMA = P*a + EMA_prev*(1-a)
   where a = s/(1+N)
+
+  Where:
+              P is current price
+              s is smoothing
+              a is smoothing factor
+              N is number of samples
   ```
 
 For detailed testing instructions covering various scenarios (different configurations, database testing, WebSocket testing, smoothing algorithms, and graceful shutdown), see the [Testing Guide](docs/TESTING.md).
