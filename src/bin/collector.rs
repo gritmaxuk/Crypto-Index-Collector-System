@@ -4,6 +4,7 @@ use std::time::Duration;
 use tokio::sync::{mpsc, RwLock, broadcast};
 use tokio::signal;
 use tracing::{info, error, warn};
+use clap::Parser;
 
 use crypto_index_collector::config;
 use crypto_index_collector::exchange;
@@ -13,15 +14,28 @@ use crypto_index_collector::storage::Database;
 use crypto_index_collector::websocket;
 use crypto_index_collector::logging;
 
+/// Crypto Index Collector - Fetches cryptocurrency prices and calculates indices
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    /// Path to the configuration file
+    #[arg(short, long, default_value = "config.toml")]
+    config: String,
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     // Set up logging
     logging::setup_logging()?;
 
+    // Parse command line arguments
+    let args = Args::parse();
+
     info!("[STARTUP] Starting Crypto Index Collector...");
+    info!("[CONFIG] Using configuration file: {}", args.config);
 
     // Load configuration
-    let config = config::load_config("config.toml")?;
+    let config = config::load_config(&args.config)?;
 
     info!("[CONFIG] Configuration loaded successfully with {} indices defined", config.indices.len());
 
