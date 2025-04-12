@@ -1,7 +1,7 @@
 # Define all feeds in one section
 [feeds]
 coinbase_btc_usd = { exchange = "coinbase", symbol = "BTC-USD", enabled = true }
-binance_btc_usdt = { exchange = "binance", symbol = "BTCUSDT", enabled = true }
+binance_btc_usdt = { exchange = "binance", symbol = "BTCUSDT", enabled = false }  # Disabled feed
 coinbase_eth_usd = { exchange = "coinbase", symbol = "ETH-USD", enabled = true }
 binance_eth_usdt = { exchange = "binance", symbol = "ETHUSDT", enabled = true }
 
@@ -10,8 +10,7 @@ binance_eth_usdt = { exchange = "binance", symbol = "ETHUSDT", enabled = true }
 name = "BTC-USD-INDEX"
 smoothing = "ema"  # Options: "none", "sma", "ema"
 feeds = [
-    { id = "coinbase_btc_usd", weight = 60 },
-    { id = "binance_btc_usdt", weight = 40 }
+    { id = "coinbase_btc_usd", weight = 100 }  # Only one feed with 100% weight
 ]
 
 [[indices]]

@@ -40,9 +40,12 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     // Create channel for price updates
     let (tx, rx) = mpsc::channel(100);
 
+    // Convert configuration to internal model
+    let indices = config.to_internal_model();
+
     // Create index calculator
     let index_calc = Arc::new(RwLock::new(IndexCalculator::new(
-        config.indices.clone(),
+        indices.clone(),
         rx,
     )));
 
@@ -61,7 +64,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     // Start price feed tasks
     let mut feed_handles = Vec::new();
 
-    for index in &config.indices {
+    for index in &indices {
         for feed in &index.feeds {
             let feed = feed.clone();
             let tx = tx.clone();

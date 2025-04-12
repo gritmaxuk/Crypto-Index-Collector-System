@@ -1,12 +1,14 @@
+# Define all feeds in one section
+[feeds]
+coinbase_btc_usd = { exchange = "coinbase", symbol = "BTC-USD", enabled = true }
+
+# Define indices and reference feeds
 [[indices]]
 name = "BTC-USD-INDEX"
 smoothing = "none"  # Options: "none", "sma", "ema"
-
-[[indices.feeds]]
-id = "coinbase_btc_usd"
-exchange = "coinbase"
-symbol = "BTC-USD"
-weight = 100  # 100% weight
+feeds = [
+    { id = "coinbase_btc_usd", weight = 100 }
+]
 
 [database]
 enabled = false

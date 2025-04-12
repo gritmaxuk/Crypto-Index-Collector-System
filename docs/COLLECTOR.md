@@ -28,45 +28,32 @@ RUST_LOG=info cargo run --bin crypto-index-collector -- --config custom-config.t
 
 ## Configuration
 
-The collector is configured via a TOML file (`config.toml` by default). Here's a complete example with all available options:
+The collector is configured via a TOML file (`config.toml` by default). The configuration is organized into separate sections for feeds and indices. Here's a complete example with all available options:
 
 ```toml
-# Index definitions
+# Define all feeds in one section
+[feeds]
+coinbase_btc_usd = { exchange = "coinbase", symbol = "BTC-USD", enabled = true }
+binance_btc_usdt = { exchange = "binance", symbol = "BTCUSDT", enabled = true }
+coinbase_eth_usd = { exchange = "coinbase", symbol = "ETH-USD", enabled = true }
+binance_eth_usdt = { exchange = "binance", symbol = "ETHUSDT", enabled = true }
+
+# Define indices and reference feeds
 [[indices]]
 name = "BTC-USD-INDEX"
-symbol = "BTC/USD"
 smoothing = "ema"  # Options: "none", "sma", "ema"
+feeds = [
+    { id = "coinbase_btc_usd", weight = 60 },
+    { id = "binance_btc_usdt", weight = 40 }
+]
 
-# Price feeds for this index
-[[indices.feeds]]
-id = "coinbase-btc-usd"
-exchange = "coinbase"
-symbol = "BTC-USD"
-weight = 60  # Percentage weight (must sum to 100)
-
-[[indices.feeds]]
-id = "binance-btc-usdt"
-exchange = "binance"
-symbol = "BTCUSDT"
-weight = 40
-
-# Another index
 [[indices]]
 name = "ETH-USD-INDEX"
-symbol = "ETH/USD"
-smoothing = "sma"
-
-[[indices.feeds]]
-id = "coinbase-eth-usd"
-exchange = "coinbase"
-symbol = "ETH-USD"
-weight = 50
-
-[[indices.feeds]]
-id = "binance-eth-usdt"
-exchange = "binance"
-symbol = "ETHUSDT"
-weight = 50
+smoothing = "sma"  # Options: "none", "sma", "ema"
+feeds = [
+    { id = "coinbase_eth_usd", weight = 50 },
+    { id = "binance_eth_usdt", weight = 50 }
+]
 
 # Database configuration (optional)
 [database]
@@ -76,26 +63,44 @@ retention_days = 30
 
 # WebSocket server configuration
 [websocket]
-address = "127.0.0.1:9000"
+address = "0.0.0.0:9000"
 ```
 
 ### Configuration Options
 
-#### Indices
+#### Feeds Section
 
-- `name`: Name of the index (e.g., "BTC-USD-INDEX")
-- `symbol`: Symbol for the index (e.g., "BTC/USD")
-- `smoothing`: Smoothing algorithm to apply:
-  - `"none"`: No smoothing (passthru)
-  - `"sma"`: Simple Moving Average (20-point)
-  - `"ema"`: Exponential Moving Average (20-point)
+The `[feeds]` section defines all available price feeds:
 
-#### Feeds
+```toml
+[feeds]
+feed_id = { exchange = "exchange_name", symbol = "symbol_name", enabled = true|false }
+```
 
-- `id`: Unique identifier for the feed
-- `exchange`: Exchange to fetch data from (`"coinbase"` or `"binance"`)
-- `symbol`: Symbol to fetch (exchange-specific format)
-- `weight`: Percentage weight in the index (must sum to 100 for all feeds in an index)
+- `feed_id`: A unique identifier for the feed (e.g., `coinbase_btc_usd`)
+- `exchange`: The exchange to fetch data from (`coinbase` or `binance`)
+- `symbol`: The symbol to fetch (in exchange-specific format)
+- `enabled`: Whether the feed is enabled (default: `true`)
+
+#### Indices Section
+
+The `[[indices]]` section defines the indices to calculate:
+
+```toml
+[[indices]]
+name = "INDEX-NAME"
+smoothing = "none|sma|ema"
+feeds = [
+    { id = "feed_id1", weight = 60 },
+    { id = "feed_id2", weight = 40 }
+]
+```
+
+- `name`: The name of the index (e.g., `BTC-USD-INDEX`)
+- `smoothing`: The smoothing algorithm to use (`none`, `sma`, or `ema`)
+- `feeds`: A list of feeds to include in the index
+  - `id`: The ID of a feed defined in the `[feeds]` section
+  - `weight`: The weight of the feed in the index (must sum to 100)
 
 #### Database
 

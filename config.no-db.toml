@@ -23,9 +23,7 @@ feeds = [
 ]
 
 [database]
-enabled = true
-url = "postgres://postgres:password@localhost:5432/crypto_indices"
-retention_days = 30  # How long to keep raw data
+enabled = false
 
 [websocket]
 address = "0.0.0.0:9000"

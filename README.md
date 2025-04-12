@@ -77,35 +77,49 @@ See [DOCKER.md](docs/DOCKER.md) for detailed documentation on Docker deployment.
 
 ### Configuration
 
-The application is configured via the `config.toml` file. Key configuration options:
+The application is configured via the `config.toml` file. The configuration is organized into separate sections for feeds and indices:
 
 ```toml
-# Example configuration
+# Define all feeds in one section
+[feeds]
+coinbase_btc_usd = { exchange = "coinbase", symbol = "BTC-USD", enabled = true }
+binance_btc_usdt = { exchange = "binance", symbol = "BTCUSDT", enabled = true }
+coinbase_eth_usd = { exchange = "coinbase", symbol = "ETH-USD", enabled = true }
+binance_eth_usdt = { exchange = "binance", symbol = "ETHUSDT", enabled = true }
+
+# Define indices and reference feeds
 [[indices]]
 name = "BTC-USD-INDEX"
-symbol = "BTC/USD"
-smooothing = "ema"  # Options: "none", "sma", "ema"
+smoothing = "ema"  # Options: "none", "sma", "ema"
+feeds = [
+    { id = "coinbase_btc_usd", weight = 60 },
+    { id = "binance_btc_usdt", weight = 40 }
+]
 
-[[indices.feeds]]
-id = "coinbase-btc-usd"
-exchange = "coinbase"
-symbol = "BTC-USD"
-weight = 60  # Percentage weight (must sum to 100)
-
-[[indices.feeds]]
-id = "binance-btc-usdt"
-exchange = "binance"
-symbol = "BTCUSDT"
-weight = 40
+[[indices]]
+name = "ETH-USD-INDEX"
+smoothing = "sma"  # Options: "none", "sma", "ema"
+feeds = [
+    { id = "coinbase_eth_usd", weight = 50 },
+    { id = "binance_eth_usdt", weight = 50 }
+]
 
 [database]
 enabled = true
 url = "postgres://postgres:password@localhost:5432/crypto_indices"
-retention_days = 30
+retention_days = 30  # How long to keep raw data
 
 [websocket]
-address = "127.0.0.1:9000"
+address = "0.0.0.0:9000"
 ```
+
+Several example configuration files are provided:
+
+- `config.toml` - Standard configuration with database enabled
+- `config.simple.toml` - Simplified configuration with a single feed
+- `config.no-db.toml` - Configuration with database disabled
+- `config.docker.toml` - Configuration for Docker deployment
+- `config.disabled-feeds.toml` - Configuration with some feeds disabled
 
 ## Components
 
