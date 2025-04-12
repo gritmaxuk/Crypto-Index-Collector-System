@@ -60,9 +60,12 @@ cargo build --release
 
 ### Running with Docker
 
-The project includes Docker support for easy deployment:
+**Note:** Docker deployment is currently not functional and is under development.
+
+The project includes Docker configuration files that will be functional in a future update:
 
 ```bash
+# These commands will work once Docker support is implemented
 # Build and start all services
 docker-compose up -d
 
@@ -73,7 +76,7 @@ docker-compose logs -f
 docker-compose down
 ```
 
-See [DOCKER.md](docs/DOCKER.md) for detailed documentation on Docker deployment.
+See [DOCKER.md](docs/DOCKER.md) for reference documentation on Docker deployment.
 
 ### Configuration
 
@@ -208,6 +211,8 @@ The smoothing algorithm tests verify:
   EMA = P*a + EMA_prev*(1-a)
   where a = s/(1+N)
   ```
+
+For detailed testing instructions covering various scenarios (different configurations, database testing, WebSocket testing, smoothing algorithms, and graceful shutdown), see the [Testing Guide](docs/TESTING.md).
 
 ## Project Structure
 

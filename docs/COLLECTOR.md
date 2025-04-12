@@ -164,6 +164,32 @@ CREATE INDEX idx_raw_price_data_timestamp ON raw_price_data (timestamp);
 CREATE UNIQUE INDEX idx_raw_price_data_feed_timestamp ON raw_price_data (feed_id, timestamp);
 ```
 
+## Testing
+
+The collector can be tested in various configurations to verify different aspects of its functionality:
+
+```bash
+# Test with simple configuration (single feed, no database)
+RUST_LOG=info cargo run --bin crypto-index-collector -- --config config.simple.toml
+
+# Test with database enabled
+RUST_LOG=info cargo run --bin crypto-index-collector -- --config config.toml
+
+# Test with database disabled
+RUST_LOG=info cargo run --bin crypto-index-collector -- --config config.no-db.toml
+
+# Test with specific smoothing algorithm (SMA)
+RUST_LOG=trace cargo run --bin crypto-index-collector -- --config config.test-sma.toml
+
+# Test with specific smoothing algorithm (EMA)
+RUST_LOG=trace cargo run --bin crypto-index-collector -- --config config.test-ema.toml
+
+# Test with performance configuration (multiple indices and feeds)
+RUST_LOG=info cargo run --bin crypto-index-collector -- --config config.performance.toml
+```
+
+For detailed testing instructions covering various scenarios, see the [Testing Guide](TESTING.md).
+
 ## Limitations
 
 - The collector uses static configuration and doesn't support in-flight changes to indices or feeds

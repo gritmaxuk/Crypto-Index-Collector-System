@@ -1,0 +1,17 @@
+# Define all feeds in one section
+[feeds]
+coinbase_btc_usd = { exchange = "coinbase", symbol = "BTC-USD", enabled = true }
+
+# Define indices and reference feeds
+[[indices]]
+name = "BTC-USD-INDEX"
+smoothing = "ema"  # Exponential Moving Average
+feeds = [
+    { id = "coinbase_btc_usd", weight = 100 }
+]
+
+[database]
+enabled = false
+
+[websocket]
+address = "0.0.0.0:9000"

@@ -103,6 +103,10 @@ The Crypto Index Collector system uses a client-server architecture:
 
 This separation allows multiple clients to connect to a single collector instance and provides flexibility in deployment.
 
+## Docker Status
+
+**Note:** Docker deployment is currently not functional and is under development. The instructions in this document are for reference only and will be updated once Docker support is fully implemented.
+
 ## Production Considerations
 
 For production deployments, consider:

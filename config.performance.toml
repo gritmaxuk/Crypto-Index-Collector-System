@@ -1,0 +1,49 @@
+# Define many feeds for performance testing
+[feeds]
+coinbase_btc_usd = { exchange = "coinbase", symbol = "BTC-USD", enabled = true }
+binance_btc_usdt = { exchange = "binance", symbol = "BTCUSDT", enabled = true }
+coinbase_eth_usd = { exchange = "coinbase", symbol = "ETH-USD", enabled = true }
+binance_eth_usdt = { exchange = "binance", symbol = "ETHUSDT", enabled = true }
+coinbase_sol_usd = { exchange = "coinbase", symbol = "SOL-USD", enabled = true }
+binance_sol_usdt = { exchange = "binance", symbol = "SOLUSDT", enabled = true }
+coinbase_ada_usd = { exchange = "coinbase", symbol = "ADA-USD", enabled = true }
+binance_ada_usdt = { exchange = "binance", symbol = "ADAUSDT", enabled = true }
+
+# Define multiple indices
+[[indices]]
+name = "BTC-USD-INDEX"
+smoothing = "ema"
+feeds = [
+    { id = "coinbase_btc_usd", weight = 60 },
+    { id = "binance_btc_usdt", weight = 40 }
+]
+
+[[indices]]
+name = "ETH-USD-INDEX"
+smoothing = "sma"
+feeds = [
+    { id = "coinbase_eth_usd", weight = 50 },
+    { id = "binance_eth_usdt", weight = 50 }
+]
+
+[[indices]]
+name = "SOL-USD-INDEX"
+smoothing = "none"
+feeds = [
+    { id = "coinbase_sol_usd", weight = 70 },
+    { id = "binance_sol_usdt", weight = 30 }
+]
+
+[[indices]]
+name = "ADA-USD-INDEX"
+smoothing = "ema"
+feeds = [
+    { id = "coinbase_ada_usd", weight = 40 },
+    { id = "binance_ada_usdt", weight = 60 }
+]
+
+[database]
+enabled = false
+
+[websocket]
+address = "0.0.0.0:9000"

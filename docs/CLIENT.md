@@ -102,6 +102,28 @@ The client implements robust error handling:
 - Provides clear error messages
 - Continues operation even after temporary connection issues
 
+## Testing
+
+The client can be tested in various scenarios to verify its functionality:
+
+```bash
+# Test with the collector running locally
+RUST_LOG=info cargo run --bin crypto-index-client
+
+# Test with a specific server address
+RUST_LOG=info cargo run --bin crypto-index-client -- --server ws://localhost:9000
+
+# Test reconnection behavior (start client before collector)
+RUST_LOG=info cargo run --bin crypto-index-client
+# Then in another terminal
+RUST_LOG=info cargo run --bin crypto-index-collector -- --config config.simple.toml
+
+# Test graceful shutdown
+# Start both collector and client, then press Ctrl+C in the collector terminal
+```
+
+For detailed testing instructions covering various scenarios, see the [Testing Guide](TESTING.md).
+
 ## Integration with Other Tools
 
 The client's output can be easily piped to other tools for further processing:
